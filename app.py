@@ -19,10 +19,13 @@ file = st.file_uploader("Upload diamonds.csv", type=["csv"])
 
 if file:
 
-    df = pd.read_csv(file)
+   df = pd.read_csv(file)
 
-    # supaya training cepat
-    df = df.sample(10000, random_state=42)
+st.subheader("Dataset Preview")
+st.dataframe(df.head())   # tetap dari baris pertama
+
+# dataset untuk training saja yang disample
+df = df.sample(10000, random_state=42)
 
     st.subheader("Dataset Preview")
     st.dataframe(df.head())
@@ -171,3 +174,4 @@ if file:
                 prediction = st.session_state["model"].predict(input_data)
 
             st.success(f"💰 Predicted Diamond Price: ${prediction[0]:.2f}")
+
