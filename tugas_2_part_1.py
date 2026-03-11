@@ -8,15 +8,8 @@ Original file is located at
 """
 
 import pandas as pd
-import numpy as np
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OrdinalEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import FunctionTransformer
 
-df = pd.read_csv(r'd:\SEM 4\Diamond\diamonds.csv')
+df = pd.read_csv('/content/drive/MyDrive/AI/Dataset/diamonds.csv')
 
 df.head(10)
 
@@ -27,32 +20,34 @@ df.describe()
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# only predictors, omit price!
-predictor_cols = ['carat', 'depth', 'table', 'x', 'y', 'z']
+numerical_cols = ['carat', 'depth', 'table', 'price', 'x', 'y', 'z']
 
-# visualise them if you like
-plt.figure(figsize=(15,10))
-for i, col in enumerate(predictor_cols):
-    plt.subplot(2,3,i+1)
+plt.figure(figsize=(15, 10))
+for i, col in enumerate(numerical_cols):
+    plt.subplot(3, 3, i + 1)
     sns.boxplot(y=df[col])
     plt.title(f'Boxplot of {col}')
+    plt.ylabel(col)
 
-# remove outliers column‑wise – price is not included
+plt.tight_layout()
+plt.show()
+
 df_cleaned = df.copy()
-for col in predictor_cols:
+
+for col in numerical_cols:
     Q1 = df_cleaned[col].quantile(0.25)
     Q3 = df_cleaned[col].quantile(0.75)
     IQR = Q3 - Q1
-    lb, ub = Q1 - 1.5*IQR, Q3 + 1.5*IQR
-    df_cleaned = df_cleaned[(df_cleaned[col] >= lb) &
-                            (df_cleaned[col] <= ub)]
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+    df_cleaned = df_cleaned[(df_cleaned[col] >= lower_bound) & (df_cleaned[col] <= upper_bound)]
 
-print(df.shape, '→', df_cleaned.shape, 'after outlier removal')
+print(f"DataFrame shape before outlier removal: {df.shape}")
+print(f"DataFrame shape after outlier removal: {df_cleaned.shape}")
 
 df_cleaned.head()
 
-# after cleaning we will need these lists again; price is not a predictor here
-numerical_cols = ['carat', 'depth', 'table', 'x', 'y', 'z', 'price']
+numerical_cols = ['carat', 'depth', 'table', 'price', 'x', 'y', 'z']
 categorical_cols = ['cut', 'color', 'clarity']
 
 plt.figure(figsize=(8,6))
@@ -166,22 +161,416 @@ sns.heatmap(
     linewidths=0.5,
 )
 plt.title('Correlation Matrix')
-plt.show()
+plt.show
 
-cat_cols = ['cut','color','clarity']
-cat_ord = ColumnTransformer(
-    [('ord', OrdinalEncoder(
-         categories=[['Fair','Good','Very Good','Premium','Ideal'],
-                     ['J','I','H','G','F','E','D'],
-                     ['I1','SI2','SI1','VS2','VS1','VVS2','VVS1','IF']]),
-      cat_cols)],
-    remainder='passthrough'
-)
 
-pipeline = Pipeline([
-    ('clean', FunctionTransformer(clean_outliers)),  # user‑defined fn
-    ('encode', cat_ord),
-    ('model', RandomForestRegressor(random_state=42))
-])
 
-pipeline.fit(X_train, y_train)
+"""# Task
+Perform ordinal encoding on the 'cut', 'color', and 'clarity' features in the `df_cleaned` DataFrame, respecting the specified order for each category. Then, define the features (X) and target (y) for model training, create four different train-test splits (90:10, 80:20, 70:30, 60:40), initialize K-Nearest Neighbors, Random Forest, and XGBoost Regressor models with hyperparameter grids. Subsequently, tune and train these models using `GridSearchCV` for each split, make predictions on the test sets, and evaluate their performance using MAE, RMSE, and R². Finally, present a comparative table of these metrics across all models and splits and summarize the best-performing model and split configuration.
+
+## Feature Engineering - Categorical Encoding
+
+### Subtask:
+Perform ordinal encoding on the 'cut', 'color', and 'clarity' features to convert them into numerical representations suitable for machine learning models, ensuring the encoding respects the inherent order of these features.
+
+**Reasoning**:
+First, I will define the ordinal mapping dictionaries for the 'cut', 'color', and 'clarity' features based on the specified order.
+"""
+
+cut_mapping = {
+    'Fair': 1,
+    'Good': 2,
+    'Very Good': 3,
+    'Premium': 4,
+    'Ideal': 5
+}
+
+color_mapping = {
+    'J': 1,
+    'I': 2,
+    'H': 3,
+    'G': 4,
+    'F': 5,
+    'E': 6,
+    'D': 7
+}
+
+clarity_mapping = {
+    'I1': 1,
+    'SI2': 2,
+    'SI1': 3,
+    'VS2': 4,
+    'VS1': 5,
+    'VVS2': 6,
+    'VVS1': 7,
+    'IF': 8
+}
+
+print("Ordinal mapping dictionaries defined.")
+
+"""**Reasoning**:
+Now that the ordinal mapping dictionaries are defined, I will apply these mappings to the 'cut', 'color', and 'clarity' columns in the `df_cleaned` DataFrame to convert them into numerical representations.
+
+
+"""
+
+df_cleaned['cut_encoded'] = df_cleaned['cut'].map(cut_mapping)
+df_cleaned['color_encoded'] = df_cleaned['color'].map(color_mapping)
+df_cleaned['clarity_encoded'] = df_cleaned['clarity'].map(clarity_mapping)
+
+print("Ordinal encoding applied to 'cut', 'color', and 'clarity' features.")
+print(df_cleaned[['cut', 'cut_encoded', 'color', 'color_encoded', 'clarity', 'clarity_encoded']].head())
+
+"""**Reasoning**:
+The previous cell failed because 'df_cleaned' was not defined in the current kernel session. To fix this, I need to recreate the `df` DataFrame by loading it from the CSV file and then recreate `df_cleaned` by applying the outlier removal steps from earlier cells, ensuring all necessary variables are present before performing the ordinal encoding.
+
+
+"""
+
+df = pd.read_csv('/content/drive/MyDrive/AI/Dataset/diamonds.csv')
+
+numerical_cols = ['carat', 'depth', 'table', 'price', 'x', 'y', 'z']
+
+df_cleaned = df.copy()
+
+for col in numerical_cols:
+    Q1 = df_cleaned[col].quantile(0.25)
+    Q3 = df_cleaned[col].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+    df_cleaned = df_cleaned[(df_cleaned[col] >= lower_bound) & (df_cleaned[col] <= upper_bound)]
+
+df_cleaned['cut_encoded'] = df_cleaned['cut'].map(cut_mapping)
+df_cleaned['color_encoded'] = df_cleaned['color'].map(color_mapping)
+df_cleaned['clarity_encoded'] = df_cleaned['clarity'].map(clarity_mapping)
+
+print("Ordinal encoding applied to 'cut', 'color', and 'clarity' features.")
+print(df_cleaned[['cut', 'cut_encoded', 'color', 'color_encoded', 'clarity', 'clarity_encoded']].head())
+
+"""## Define Features and Target
+
+### Subtask:
+Separate the preprocessed DataFrame into features (X) by selecting all columns except 'price', and the target variable (y) as the 'price' column.
+
+**Reasoning**:
+Based on the instructions, I need to separate the `df_cleaned` DataFrame into features (X) and the target variable (y). The features (X) will include all columns except 'price', 'cut', 'color', and 'clarity', while the target (y) will be the 'price' column.
+"""
+
+X = df_cleaned.drop(['price', 'cut', 'color', 'clarity'], axis=1)
+y = df_cleaned['price']
+
+print("Features (X) head:")
+print(X.head())
+print("\nTarget (y) head:")
+print(y.head())
+
+"""**Reasoning**:
+The previous cell failed because 'df_cleaned' was not defined in the current kernel session. I need to re-run the data loading, outlier removal, and ordinal encoding steps to ensure `df_cleaned` is properly initialized before separating features (X) and target (y).
+
+
+"""
+
+import pandas as pd
+
+df = pd.read_csv('/content/drive/MyDrive/AI/Dataset/diamonds.csv')
+
+numerical_cols = ['carat', 'depth', 'table', 'price', 'x', 'y', 'z']
+
+df_cleaned = df.copy()
+
+for col in numerical_cols:
+    Q1 = df_cleaned[col].quantile(0.25)
+    Q3 = df_cleaned[col].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+    df_cleaned = df_cleaned[(df_cleaned[col] >= lower_bound) & (df_cleaned[col] <= upper_bound)]
+
+# Re-applying ordinal mappings (mappings are already in kernel state)
+df_cleaned['cut_encoded'] = df_cleaned['cut'].map(cut_mapping)
+df_cleaned['color_encoded'] = df_cleaned['color'].map(color_mapping)
+df_cleaned['clarity_encoded'] = df_cleaned['clarity'].map(clarity_mapping)
+
+X = df_cleaned.drop(['price', 'cut', 'color', 'clarity'], axis=1)
+y = df_cleaned['price']
+
+print("Features (X) head:")
+print(X.head())
+print("\nTarget (y) head:")
+print(y.head())
+
+"""## Data Splitting Scenarios
+
+### Subtask:
+Implement four different train-test split scenarios (90:10, 80:20, 70:30, 60:40) using `train_test_split` with `random_state` for reproducibility. Store these splits for subsequent model training and evaluation.
+
+**Reasoning**:
+First, I need to import the `train_test_split` function from `sklearn.model_selection` to perform the data splitting. This is a prerequisite for creating the different train-test scenarios.
+"""
+
+from sklearn.model_selection import train_test_split
+
+print("train_test_split imported successfully.")
+
+"""**Reasoning**:
+Now that `train_test_split` is imported, I will define the split ratios, iterate through them, and perform the train-test split for each ratio, storing the results in a dictionary for later use. This directly addresses the subtask requirements.
+
+
+"""
+
+split_ratios = [(0.9, 0.1), (0.8, 0.2), (0.7, 0.3), (0.6, 0.4)]
+splits = {}
+
+for train_ratio, test_ratio in split_ratios:
+    test_size = test_ratio
+    train_size = train_ratio
+
+    # Generate a descriptive key for the split
+    key = f"split_{int(train_ratio*100)}_{int(test_ratio*100)}"
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+
+    splits[key] = {
+        'X_train': X_train,
+        'X_test': X_test,
+        'y_train': y_train,
+        'y_test': y_test
+    }
+    print(f"Split {key}: X_train shape {X_train.shape}, X_test shape {X_test.shape}")
+
+print("All train-test splits created and stored.")
+
+"""## Initialize Models and Hyperparameters
+
+### Subtask:
+Initialize K-Nearest Neighbors, Random Forest, and XGBoost Regressor models, and define their respective hyperparameter grids for tuning.
+
+**Reasoning**:
+I need to import the required regressor models from their respective libraries to initialize them. This is the first logical step before defining models and their hyperparameter grids.
+"""
+
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.ensemble import RandomForestRegressor
+from xgboost import XGBRegressor
+
+print("KNeighborsRegressor, RandomForestRegressor, and XGBRegressor imported successfully.")
+
+"""**Reasoning**:
+Now that the required libraries are imported, I will initialize the model dictionaries and their hyperparameter grids as specified in the instructions. This involves creating dictionaries for models and parameter grids, instantiating each model, and defining their respective hyperparameter ranges for tuning.
+
+
+"""
+
+models = {}
+param_grids = {}
+
+# K-Nearest Neighbors
+models['KNN'] = KNeighborsRegressor()
+param_grids['KNN'] = {
+    'n_neighbors': [3, 5, 7]
+}
+
+# Random Forest
+models['RandomForest'] = RandomForestRegressor(random_state=42)
+param_grids['RandomForest'] = {
+    'n_estimators': [50, 100],
+    'max_depth': [None, 10, 20]
+}
+
+# XGBoost Regressor
+models['XGBoost'] = XGBRegressor(random_state=42)
+param_grids['XGBoost'] = {
+    'learning_rate': [0.01, 0.1],
+    'n_estimators': [50, 100]
+}
+
+print("Models and hyperparameter grids initialized successfully.")
+print("Models:", models.keys())
+print("Parameter Grids:", param_grids.keys())
+
+"""## Hyperparameter Tuning and Model Training
+
+### Subtask:
+For each of the four train-test split scenarios, use `GridSearchCV` to perform hyperparameter tuning for each of the three models. Train the best-performing model (based on cross-validation) for each split and algorithm using the training data.
+
+**Reasoning**:
+First, I need to import `GridSearchCV` from `sklearn.model_selection` to enable hyperparameter tuning. This is a prerequisite for executing the core logic of the subtask.
+"""
+
+from sklearn.model_selection import GridSearchCV
+
+print("GridSearchCV imported successfully.")
+
+"""**Reasoning**:
+Now that `GridSearchCV` is imported, I will initialize the dictionaries to store results, then iterate through each train-test split and each model to perform `GridSearchCV` for hyperparameter tuning. The best estimator and the full grid search results will be stored, and progress messages will be printed as per the instructions.
+
+
+"""
+
+tuned_models = {}
+grid_search_results = {}
+
+for split_name, split_data in splits.items():
+    X_train = split_data['X_train']
+    y_train = split_data['y_train']
+
+    print(f"\nStarting tuning for split: {split_name}")
+
+    for model_name, model in models.items():
+        print(f"  Tuning {model_name}...")
+        grid_search = GridSearchCV(
+            estimator=model,
+            param_grid=param_grids[model_name],
+            cv=3, # Using 3-fold cross-validation
+            scoring='neg_mean_squared_error',
+            n_jobs=-1, # Use all available cores
+            verbose=1 # Display progress
+        )
+
+        grid_search.fit(X_train, y_train)
+
+        tuned_models[f'{split_name}_{model_name}'] = grid_search.best_estimator_
+        grid_search_results[f'{split_name}_{model_name}'] = grid_search
+
+        print(f"  Finished tuning {model_name} for {split_name}. Best parameters: {grid_search.best_params_}")
+
+print("\nAll models tuned and best estimators stored.")
+
+"""## Prediction
+
+### Subtask:
+After training, make predictions on the respective test sets for each tuned model and each train-test split scenario.
+
+"""
+
+all_predictions = {}
+
+for split_name, split_data in splits.items():
+    X_test = split_data['X_test']
+
+    print(f"\nMaking predictions for split: {split_name}")
+
+    for model_name in models.keys():
+        tuned_model = tuned_models[f'{split_name}_{model_name}']
+        predictions = tuned_model.predict(X_test)
+        all_predictions[f'{split_name}_{model_name}_predictions'] = predictions
+        print(f"  Predictions made for {model_name} on {split_name} test set. Shape: {predictions.shape}")
+
+print("\nAll predictions generated and stored.")
+
+"""**Reasoning**:
+All predictions have been made and stored. Now, I need to evaluate the performance of each model on each split using MAE, RMSE, and R-squared metrics. To do this, I will import the necessary evaluation metrics from `sklearn.metrics`.
+
+
+"""
+
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+import numpy as np
+
+print("Evaluation metrics (MAE, RMSE, R2) and numpy imported successfully.")
+
+"""**Reasoning**:
+Now that the evaluation metrics are imported, I will iterate through each train-test split and each tuned model. For each combination, I will retrieve the true target values and the predictions, calculate MAE, RMSE, and R-squared, and store these results in a structured format for a comparative table.
+
+
+"""
+
+results = []
+
+for split_name, split_data in splits.items():
+    y_test = split_data['y_test']
+
+    for model_name in models.keys():
+        predictions = all_predictions[f'{split_name}_{model_name}_predictions']
+
+        mae = mean_absolute_error(y_test, predictions)
+        rmse = np.sqrt(mean_squared_error(y_test, predictions))
+        r2 = r2_score(y_test, predictions)
+
+        results.append({
+            'Split': split_name,
+            'Model': model_name,
+            'MAE': mae,
+            'RMSE': rmse,
+            'R2': r2
+        })
+
+metrics_df = pd.DataFrame(results)
+print("Evaluation metrics calculated and stored in 'metrics_df'.")
+print("\nComparative Table of Model Performance:")
+print(metrics_df.round(3))
+
+"""**Reasoning**:
+Now that the evaluation metrics are calculated and stored in `metrics_df`, I will identify the best-performing model and split configuration by analyzing the metrics. This involves finding the minimum MAE, minimum RMSE, and maximum R2, and then reporting the corresponding model and split for each.
+
+
+"""
+
+print("\nSummary of Best Performing Models and Splits:")
+
+best_mae_row = metrics_df.loc[metrics_df['MAE'].idxmin()]
+best_rmse_row = metrics_df.loc[metrics_df['RMSE'].idxmin()]
+best_r2_row = metrics_df.loc[metrics_df['R2'].idxmax()]
+
+print(f"\nBest MAE: {best_mae_row['MAE']:.3f}")
+print(f"  Model: {best_mae_row['Model']}")
+print(f"  Split: {best_mae_row['Split']}")
+
+print(f"\nBest RMSE: {best_rmse_row['RMSE']:.3f}")
+print(f"  Model: {best_rmse_row['Model']}")
+print(f"  Split: {best_rmse_row['Split']}")
+
+print(f"\nBest R2: {best_r2_row['R2']:.3f}")
+print(f"  Model: {best_r2_row['Model']}")
+print(f"  Split: {best_r2_row['Split']}")
+
+"""## Final Task
+
+### Subtask:
+Summarize the findings from the model comparison, highlighting which model and train-test split configuration yielded the best performance based on the evaluation metrics.
+
+## Summary:
+
+### Q&A
+The model comparison indicates that the XGBoost Regressor and Random Forest Regressor models consistently delivered superior performance compared to K-Nearest Neighbors (KNN).
+
+Specifically, based on the evaluation metrics:
+*   The **Random Forest Regressor** achieved the best Mean Absolute Error (MAE) of 187.010 with a 90:10 train-test split.
+*   The **XGBoost Regressor** achieved the best Root Mean Squared Error (RMSE) of 331.060 with an 80:20 train-test split.
+*   The **XGBoost Regressor** achieved the highest R-squared (R\$) value of 0.984 with a 90:10 train-test split.
+
+### Data Analysis Key Findings
+*   **Feature Engineering**: Ordinal encoding was successfully applied to the 'cut', 'color', and 'clarity' features, converting them into numerical representations using predefined mappings (e.g., 'Fair' to 1 for cut, 'J' to 1 for color, 'I1' to 1 for clarity).
+*   **Data Splitting**: Four train-test splits (90:10, 80:20, 70:30, 60:40) were created, generating different dataset sizes for training and testing. For instance, the 90:10 split resulted in 41,878 training samples and 4,654 testing samples.
+*   **Model Initialization**: K-Nearest Neighbors, Random Forest, and XGBoost Regressor models were initialized, each with a predefined hyperparameter grid for tuning.
+*   **Hyperparameter Tuning**: `GridSearchCV` was used for hyperparameter tuning across all models and splits. The best hyperparameters found were consistently:
+    *   KNN: `{'n_neighbors': 7}`
+    *   Random Forest: `{'max_depth': 20, 'n_estimators': 100}`
+    *   XGBoost: `{'learning_rate': 0.1, 'n_estimators': 100}`
+*   **Model Performance Comparison**: Random Forest and XGBoost significantly outperformed KNN across all metrics and splits.
+    *   The best MAE observed was 187.010 (Random Forest, 90:10 split). The worst was 376.103 (KNN, 60:40 split).
+    *   The best RMSE observed was 331.060 (XGBoost, 80:20 split). The worst was 802.774 (KNN, 60:40 split).
+    *   The highest R\$\^2\$ achieved was 0.984 (XGBoost, 90:10 split). The lowest was 0.887 (KNN, 60:40 split).
+
+### Insights or Next Steps
+*   XGBoost Regressor and Random Forest Regressor are highly effective for predicting diamond prices based on the given features. Further optimization efforts should focus on these two models.
+*   The 90:10 train-test split generally yielded slightly better performance for the top models, suggesting that more training data is beneficial for this dataset and model types.
+"""
+
+import joblib
+
+# Pilih nama split dan model yang diinginkan berdasarkan analisis sebelumnya
+desired_split = 'split_90_10'
+desired_model_name = 'XGBoost'
+
+# Ambil model terbaik dari dictionary tuned_models
+best_model_for_streamlit = tuned_models[f'{desired_split}_{desired_model_name}']
+
+# Tentukan nama file untuk menyimpan model
+model_filename = f'{desired_model_name}_{desired_split}_best_model.pkl'
+
+# Simpan model
+joblib.dump(best_model_for_streamlit, model_filename)
+
+print(f"Model terbaik ({desired_model_name} dari {desired_split}) telah disimpan ke: {model_filename}")
