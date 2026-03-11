@@ -19,16 +19,13 @@ file = st.file_uploader("Upload diamonds.csv", type=["csv"])
 
 if file:
 
-   df = pd.read_csv(file)
-
-st.subheader("Dataset Preview")
-st.dataframe(df.head())   # tetap dari baris pertama
-
-# dataset untuk training saja yang disample
-df = df.sample(10000, random_state=42)
+    df = pd.read_csv(file)
 
     st.subheader("Dataset Preview")
-    st.dataframe(df.head())
+    st.dataframe(df.head())   # preview dari data asli
+
+    # dataset untuk training saja yang disample
+    df = df.sample(10000, random_state=42)
 
     predictor_cols = ['carat','depth','table','x','y','z']
 
@@ -134,7 +131,6 @@ df = df.sample(10000, random_state=42)
         col2.metric("RMSE",round(rmse,2))
         col3.metric("R²",round(r2,3))
 
-    # PREDICTION
     if "model" in st.session_state:
 
         st.subheader(f"💎 Predict Diamond Price ({st.session_state['algo']})")
@@ -174,4 +170,3 @@ df = df.sample(10000, random_state=42)
                 prediction = st.session_state["model"].predict(input_data)
 
             st.success(f"💰 Predicted Diamond Price: ${prediction[0]:.2f}")
-
