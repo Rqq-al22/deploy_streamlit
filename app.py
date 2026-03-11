@@ -10,12 +10,10 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
 
-
-st.set_page_config(page_title="Diamond Price Predictor", layout="centered")
+st.set_page_config(page_title="Diamond Price Prediction", layout="centered")
 
 st.title("💎 Diamond Price Prediction")
-
-st.write("Train-Test Split yang digunakan: **80% Training - 20% Testing**")
+st.write("Train-Test Split: **80% Training - 20% Testing**")
 
 file = st.file_uploader("Upload diamonds.csv", type=["csv"])
 
@@ -23,19 +21,21 @@ if file:
 
     df = pd.read_csv(file)
 
+    # supaya training cepat
+    df = df.sample(10000, random_state=42)
+
     st.subheader("Dataset Preview")
     st.dataframe(df.head())
 
-    # OUTLIER REMOVAL
     predictor_cols = ['carat','depth','table','x','y','z']
 
     df_cleaned = df.copy()
 
+    # REMOVE OUTLIERS
     for col in predictor_cols:
 
         Q1 = df_cleaned[col].quantile(0.25)
         Q3 = df_cleaned[col].quantile(0.75)
-
         IQR = Q3 - Q1
 
         lower = Q1 - 1.5 * IQR
@@ -46,8 +46,6 @@ if file:
             (df_cleaned[col] <= upper)
         ]
 
-    st.write("Jumlah data setelah outlier removal:", df_cleaned.shape[0])
-
     # ENCODING
     cut_mapping = {'Fair':1,'Good':2,'Very Good':3,'Premium':4,'Ideal':5}
     color_mapping = {'J':1,'I':2,'H':3,'G':4,'F':5,'E':6,'D':7}
@@ -57,11 +55,9 @@ if file:
     df_cleaned['color_encoded'] = df_cleaned['color'].map(color_mapping)
     df_cleaned['clarity_encoded'] = df_cleaned['clarity'].map(clarity_mapping)
 
-    # FEATURES
     X = df_cleaned.drop(['price','cut','color','clarity'], axis=1)
     y = df_cleaned['price']
 
-    # SPLIT DATA
     X_train,X_test,y_train,y_test = train_test_split(
         X,
         y,
@@ -69,13 +65,10 @@ if file:
         random_state=42
     )
 
-    # SCALER (dipakai hanya untuk KNN)
     scaler = StandardScaler()
-
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
-    # PILIH MODEL
     algo = st.selectbox(
         "Pilih Algoritma",
         ["KNN","Random Forest","XGBoost"]
@@ -83,51 +76,49 @@ if file:
 
     if st.button("Train Model"):
 
-        if algo == "KNN":
+        with st.spinner("Training model..."):
 
-            model = KNeighborsRegressor(
-                n_neighbors=5,
-                weights='distance'
-            )
+            if algo == "KNN":
 
-            model.fit(X_train_scaled, y_train)
-            preds = model.predict(X_test_scaled)
+                model = KNeighborsRegressor(
+                    n_neighbors=5,
+                    weights='distance'
+                )
 
-        elif algo == "Random Forest":
+                model.fit(X_train_scaled, y_train)
+                preds = model.predict(X_test_scaled)
 
-            model = RandomForestRegressor(
-                n_estimators=200,
-                max_depth=15,
-                min_samples_split=5,
-                min_samples_leaf=2,
-                random_state=42,
-                n_jobs=-1
-            )
+            elif algo == "Random Forest":
 
-            model.fit(X_train, y_train)
-            preds = model.predict(X_test)
+                model = RandomForestRegressor(
+                    n_estimators=100,
+                    max_depth=10,
+                    random_state=42,
+                    n_jobs=-1
+                )
 
-        else:  # XGBoost
+                model.fit(X_train, y_train)
+                preds = model.predict(X_test)
 
-            model = XGBRegressor(
-                learning_rate=0.1,
-                n_estimators=150,
-                max_depth=5,
-                subsample=0.8,
-                colsample_bytree=0.8,
-                random_state=42,
-                n_jobs=-1
-            )
+            else:
 
-            model.fit(X_train, y_train)
-            preds = model.predict(X_test)
+                model = XGBRegressor(
+                    learning_rate=0.1,
+                    n_estimators=80,
+                    max_depth=4,
+                    subsample=0.8,
+                    colsample_bytree=0.8,
+                    random_state=42,
+                    n_jobs=-1
+                )
 
-        # SIMPAN MODEL
+                model.fit(X_train, y_train)
+                preds = model.predict(X_test)
+
         st.session_state["model"] = model
         st.session_state["scaler"] = scaler
         st.session_state["algo"] = algo
 
-        # METRICS
         mae = mean_absolute_error(y_test,preds)
         rmse = np.sqrt(mean_squared_error(y_test,preds))
         r2 = r2_score(y_test,preds)
@@ -140,10 +131,7 @@ if file:
         col2.metric("RMSE",round(rmse,2))
         col3.metric("R²",round(r2,3))
 
-    # ===============================
     # PREDICTION
-    # ===============================
-
     if "model" in st.session_state:
 
         st.subheader(f"💎 Predict Diamond Price ({st.session_state['algo']})")
@@ -173,7 +161,6 @@ if file:
                 "clarity_encoded":[clarity_mapping[clarity]]
             })
 
-            # KNN perlu scaling
             if st.session_state["algo"] == "KNN":
 
                 input_scaled = st.session_state["scaler"].transform(input_data)
@@ -184,6 +171,3 @@ if file:
                 prediction = st.session_state["model"].predict(input_data)
 
             st.success(f"💰 Predicted Diamond Price: ${prediction[0]:.2f}")
-
-            price_range = f"${y_test.min():.0f} - ${y_test.max():.0f}"
-            st.info(f"Range harga dalam test set: {price_range}")
